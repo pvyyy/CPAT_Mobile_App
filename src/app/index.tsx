@@ -15,6 +15,10 @@ export default function Home() {
 
       <Link href="/about">About</Link>
 
+      <Link href="/accidents">
+        View Accident Reports
+      </Link>
+
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
