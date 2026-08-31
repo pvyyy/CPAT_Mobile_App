@@ -1,4 +1,4 @@
-// app/accidents.tsx
+// app/index.tsx
 import React from 'react';
 import {
   StyleSheet,
@@ -49,8 +49,12 @@ const ACCIDENT_REPORTS = [
   },
 ];
 
-export default function AccidentsScreen() {
+export default function Home() {
   const router = useRouter();
+
+  const handleLogout = () => {
+    router.replace('/(auth)/login');
+  };
 
   const renderReportItem = ({ item }: { item: typeof ACCIDENT_REPORTS[0] }) => (
     <View style={styles.card}>
@@ -87,15 +91,18 @@ export default function AccidentsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Top Bar with Header Title and Logout Button */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>← Back</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>CPAT Home</Text>
+          <Text style={styles.headerSubtitle}>Batangas City Incident Log</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Batangas City Incident Log</Text>
       </View>
 
-      {/* Reports List */}
+      {/* Incident Reports List */}
       <FlatList
         data={ACCIDENT_REPORTS}
         keyExtractor={(item) => item.id}
@@ -118,19 +125,31 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  backButton: {
-    marginRight: 12,
-  },
-  backButtonText: {
-    color: '#004D40',
-    fontSize: 16,
-    fontWeight: '600',
+  headerTitleContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#004D40',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  logoutButton: {
+    backgroundColor: '#004D40',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,

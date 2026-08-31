@@ -19,7 +19,7 @@ export default function LoginScreen() {
 
   const handleSignIn = () => {
     // Redirect to index.tsx (root route) upon login
-    router.replace('/');
+    router.replace('/(app)' as any);
   };
 
   return (
