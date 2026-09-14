@@ -14,6 +14,7 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../../lib/supabase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,10 +22,24 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSignIn = () => {
-    // Temporary navigation for testing
-    router.replace('/(home)' as any);
-  };
+  const handleSignIn = async () => {
+  if (!email || !password) {
+    alert('Please enter your email and password.');
+    return;
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  router.replace('/(home)' as any);
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,18 +137,18 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
 
               {/* TDRO LOGO */}
-              <Image
-                source={require('../../../assets/images/logo/tdro_logo.png')}
-                style={styles.tdroLogo}
-                resizeMode="contain"
-              />
+<Image
+  source={require('@/assets/images/logo/tdro_logo.png')}
+  style={styles.tdroLogo}
+  resizeMode="contain"
+/>
 
-              {/* CPAT LOGO */}
-              <Image
-                source={require('../../../assets/images/logo/CPATLOGO1.png')}
-                style={styles.cpatLogo}
-                resizeMode="contain"
-              />
+{/* CPAT LOGO */}
+<Image
+  source={require('@/assets/images/logo/CPATLOGO1.png')}
+  style={styles.cpatLogo}
+  resizeMode="contain"
+/>
 
             </View>
 
