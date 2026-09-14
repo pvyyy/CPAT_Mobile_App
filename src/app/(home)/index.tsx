@@ -53,7 +53,7 @@ export default function Home() {
   const router = useRouter();
 
   const handleLogout = () => {
-    router.replace('/(auth)/login');
+    router.replace('/(auth)/' as any);
   };
 
   const renderReportItem = ({ item }: { item: typeof ACCIDENT_REPORTS[0] }) => (
