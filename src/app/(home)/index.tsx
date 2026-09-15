@@ -1,5 +1,5 @@
 // app/index.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,12 +7,12 @@ import {
   FlatList,
   SafeAreaView,
   TouchableOpacity,
-  Image,
   Platform,
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../../lib/supabase'; // Ensure this points to your Supabase client setup
 
 // Sample mock data for Batangas City accident reports
 const ACCIDENT_REPORTS = [
@@ -61,8 +61,33 @@ const SEVERITY_COLORS: Record<string, { bg: string; dot: string }> = {
 
 export default function Home() {
   const router = useRouter();
+  const [firstName, setFirstName] = useState<string>('');
+  const [showLogout, setShowLogout] = useState<boolean>(false);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    async function fetchUserProfile() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('first_name')
+          .eq('id', user.id)
+          .single();
+
+        if (data?.first_name) {
+          setFirstName(data.first_name);
+        }
+      }
+    }
+
+    fetchUserProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.replace('/(auth)/' as any);
   };
 
@@ -98,30 +123,39 @@ export default function Home() {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <LinearGradient
-          colors={['#00C897', '#00A896']}
+          colors={['#065F46', '#065F46']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <View style={styles.headerTopRow}>
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Hi! Stone</Text>
+              <Text style={styles.headerTitle}>
+                {firstName ? `Welcome, ${firstName}` : 'CPAT APP'}
+              </Text>
               <Text style={styles.headerSubtitle}>There are 3 important things...</Text>
             </View>
 
             <View style={styles.headerActions}>
-              <Image
-                source={{ uri: 'https://i.pravatar.cc/100' }}
-                style={styles.avatar}
-              />
-
               <TouchableOpacity
-                onPress={handleLogout}
+                onPress={() => setShowLogout((prev) => !prev)}
                 activeOpacity={0.8}
-                style={styles.logoutButton}
+                style={styles.toggleButton}
               >
-                <Text style={styles.logoutButtonText}>Logout</Text>
+                <Text style={styles.toggleButtonText}>{showLogout ? '^' : 'v'}</Text>
               </TouchableOpacity>
+
+              {showLogout && (
+                <View style={styles.dropdownMenu}>
+                  <TouchableOpacity
+                    onPress={handleLogout}
+                    activeOpacity={0.8}
+                    style={styles.logoutButton}
+                  >
+                    <Text style={styles.logoutButtonText}>Logout</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
@@ -135,9 +169,7 @@ export default function Home() {
         <View style={styles.panel}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>Recent Activities</Text>
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>75%</Text>
-            </View>
+            
           </View>
 
           <FlatList
@@ -157,9 +189,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#00A896',
-    // SafeAreaView alone only respects the notch/status bar on iOS.
-    // On Android we add the status bar height manually so the header
-    // never renders underneath it.
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
@@ -193,22 +222,30 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     marginTop: 4,
   },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    position: 'relative',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 42,
+    right: 0,
+    backgroundColor: '#065F46',
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 10,
   },
   logoutButton: {
     paddingHorizontal: 12,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -217,6 +254,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+  },
+  toggleButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
   // Card component (overlaps the header/panel boundary)
@@ -252,20 +302,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
     color: '#1E293B',
-  },
-  progressBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: '#00C897',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#00A896',
   },
 
   // List / activity rows
