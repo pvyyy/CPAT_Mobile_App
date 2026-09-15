@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -133,7 +134,18 @@ export default function Home() {
               <Text style={styles.headerTitle}>
                 {firstName ? `Welcome, ${firstName}` : 'CPAT APP'}
               </Text>
-              <Text style={styles.headerSubtitle}>There are 3 important things...</Text>
+              <View style={styles.logosRow}>
+                <Image
+                  source={require('../../../assets/images/logo/CPATLOGO1.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+                <Image
+                  source={require('../../../assets/images/logo/tdro_logo.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
 
             <View style={styles.headerActions}>
@@ -142,7 +154,7 @@ export default function Home() {
                 activeOpacity={0.8}
                 style={styles.toggleButton}
               >
-                <Text style={styles.toggleButtonText}>{showLogout ? '^' : 'v'}</Text>
+                <Text style={styles.toggleButtonText}>⋮</Text>
               </TouchableOpacity>
 
               {showLogout && (
@@ -217,10 +229,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 4,
+  logosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 12,
+  },
+  logoImage: {
+    width: 36,
+    height: 36,
   },
   headerActions: {
     flexDirection: 'row',
