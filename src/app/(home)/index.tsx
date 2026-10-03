@@ -1,16 +1,19 @@
 // app/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
+  Animated,
+  Easing,
+  FlatList,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   View,
-  FlatList,
-  SafeAreaView,
-  TouchableOpacity,
-  Platform,
-  StatusBar,
-  Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase'; // Ensure this points to your Supabase client setup
@@ -60,10 +63,48 @@ const SEVERITY_COLORS: Record<string, { bg: string; dot: string }> = {
   Low: { bg: '#E0E7FF', dot: '#6366F1' },
 };
 
+const formatElapsed = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(total / 3600)).padStart(2, '0');
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const s = String(total % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+};
+
+const formatToday = () =>
+  new Date().toLocaleDateString('en-PH', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+const formatTime = () =>
+  new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
 export default function Home() {
   const router = useRouter();
   const [firstName, setFirstName] = useState<string>('');
   const [showLogout, setShowLogout] = useState<boolean>(false);
+
+  // Duty status
+  const [onDuty, setOnDuty] = useState<boolean>(false);
+  const [dutyStart, setDutyStart] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState<number>(0);
+  const switchAnim = useRef(new Animated.Value(0)).current;
+  const [, setTick] = useState(0);
+
+  // Keep the greeting / clock chip fresh
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -87,12 +128,75 @@ export default function Home() {
     fetchUserProfile();
   }, []);
 
-  const handleLogout = async () => {
+  // Animate the switch
+  useEffect(() => {
+    Animated.timing(switchAnim, {
+      toValue: onDuty ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // color interpolation needs the JS driver
+    }).start();
+  }, [onDuty, switchAnim]);
+
+  // Duty timer
+  useEffect(() => {
+    if (!onDuty || dutyStart === null) {
+      setElapsed(0);
+      return;
+    }
+    setElapsed(Date.now() - dutyStart);
+    const id = setInterval(() => setElapsed(Date.now() - dutyStart), 1000);
+    return () => clearInterval(id);
+  }, [onDuty, dutyStart]);
+
+  const startDuty = () => {
+    setDutyStart(Date.now());
+    setOnDuty(true);
+    // TODO: save duty status to Supabase (e.g. update profiles.on_duty = true)
+  };
+
+  const endDuty = () => {
+    setOnDuty(false);
+    setDutyStart(null);
+    // TODO: save duty status to Supabase (e.g. update profiles.on_duty = false)
+  };
+
+  const handleToggleDuty = () => {
+    if (!onDuty) {
+      startDuty();
+      return;
+    }
+    Alert.alert('End your duty?', `You've been on duty for ${formatElapsed(elapsed)}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'End Duty', style: 'destructive', onPress: endDuty },
+    ]);
+  };
+
+  const insets = useSafeAreaInsets();
+
+  const confirmLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/(auth)/' as any);
   };
 
-  const renderReportItem = ({ item }: { item: typeof ACCIDENT_REPORTS[0] }) => {
+  const handleLogout = () => {
+    setShowLogout(false);
+    Alert.alert('Log out?', 'You will need to sign in again to continue.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: confirmLogout },
+    ]);
+  };
+
+  const trackColor = switchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#CBD5E1', '#10B981'],
+  });
+  const thumbX = switchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [3, 33],
+  });
+
+  const renderReportItem = ({ item }: { item: (typeof ACCIDENT_REPORTS)[0] }) => {
     const colors = SEVERITY_COLORS[item.severity] ?? SEVERITY_COLORS.Low;
     return (
       <View style={styles.activityRow}>
@@ -120,60 +224,132 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#00A896" />
-      <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         {/* Header */}
         <LinearGradient
-          colors={['#065F46', '#065F46']}
+          colors={['#022C22', '#065F46', '#059669']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
+          {/* Decorative circles */}
+          <View style={styles.circleLarge} />
+          <View style={styles.circleSmall} />
+
+          {/* Top row: greeting on the left, menu on the right */}
           <View style={styles.headerTopRow}>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>
-                {firstName ? `Welcome, ${firstName}` : 'CPAT APP'}
-              </Text>
-              <View style={styles.logosRow}>
-                <Image
-                  source={require('../../../assets/images/logo/CPATLOGO1.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
-                <Image
-                  source={require('../../../assets/images/logo/tdro_logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
-                />
+            <View style={styles.greetingWrap}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {(firstName ? firstName[0] : 'C').toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.greetingTextWrap}>
+                <Text style={styles.greetingLine} numberOfLines={1}>
+                  {getGreeting()},{' '}
+                  <Text style={styles.greetingName}>{firstName ? firstName : 'CPAT App'}</Text>
+                </Text>
               </View>
             </View>
 
             <View style={styles.headerActions}>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setShowLogout((prev) => !prev)}
-                activeOpacity={0.8}
-                style={styles.toggleButton}
+                style={({ pressed }) => [styles.toggleButton, pressed && styles.pressed]}
               >
-                <Text style={styles.toggleButtonText}>⋮</Text>
-              </TouchableOpacity>
+                <Ionicons name="ellipsis-vertical" size={20} color="#FFFFFF" />
+              </Pressable>
 
-              {showLogout && (
-                <View style={styles.dropdownMenu}>
-                  <TouchableOpacity
-                    onPress={handleLogout}
-                    activeOpacity={0.8}
-                    style={styles.logoutButton}
-                  >
-                    <Text style={styles.logoutButtonText}>Logout</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+              <Modal
+                visible={showLogout}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => setShowLogout(false)}
+              >
+                {/* Tap anywhere outside the menu to dismiss */}
+                <Pressable style={styles.menuBackdrop} onPress={() => setShowLogout(false)}>
+                  <View style={[styles.menuCard, { top: insets.top + 66 }]}>
+                    <View style={styles.menuHeader}>
+                      <View style={styles.menuAvatar}>
+                        <Text style={styles.menuAvatarText}>
+                          {(firstName ? firstName[0] : 'C').toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.menuHeaderText}>
+                        <Text style={styles.menuLabel}>Signed in as</Text>
+                        <Text style={styles.menuName} numberOfLines={1}>
+                          {firstName || 'CPAT User'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.menuDivider} />
+
+                    <Pressable
+                      onPress={handleLogout}
+                      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                    >
+                      <View style={styles.menuItemIcon}>
+                        <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+                      </View>
+                      <Text style={styles.menuItemText}>Log out</Text>
+                    </Pressable>
+                  </View>
+                </Pressable>
+              </Modal>
             </View>
           </View>
 
-          {/* Card component — left blank for now */}
+          {/* Info chips */}
+          <View style={styles.chipsRow}>
+            <View style={styles.chip}>
+              <Ionicons name="calendar-outline" size={14} color="#FFFFFF" />
+              <Text style={styles.chipText}>{formatToday()}</Text>
+            </View>
+            <View style={styles.chip}>
+              <Ionicons name="time-outline" size={14} color="#FFFFFF" />
+              <Text style={styles.chipText}>{formatTime()}</Text>
+            </View>
+          </View>
+
+          {/* Duty status card (overlaps the header/panel boundary) */}
           <View style={styles.cardsRow}>
-            <View style={styles.placeholderCard} />
+            <View style={styles.dutyCard}>
+              <View style={styles.dutyInfo}>
+                <View style={styles.dutyStatusRow}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: onDuty ? '#10B981' : '#94A3B8' },
+                    ]}
+                  />
+                  <Text style={[styles.dutyStatus, onDuty && styles.dutyStatusOn]}>
+                    {onDuty ? 'On Duty' : 'Off Duty'}
+                  </Text>
+                </View>
+                <Text style={styles.dutySubtitle}>
+                  {onDuty
+                    ? `Time on duty · ${formatElapsed(elapsed)}`
+                    : 'Turn on to start your day'}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={handleToggleDuty}
+                hitSlop={8}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: onDuty }}
+                accessibilityLabel="Duty status"
+              >
+                <Animated.View style={[styles.switchTrack, { backgroundColor: trackColor }]}>
+                  <Animated.View
+                    style={[styles.switchThumb, { transform: [{ translateX: thumbX }] }]}
+                  />
+                </Animated.View>
+              </Pressable>
+            </View>
           </View>
         </LinearGradient>
 
@@ -181,7 +357,6 @@ export default function Home() {
         <View style={styles.panel}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>Recent Activities</Text>
-            
           </View>
 
           <FlatList
@@ -200,44 +375,48 @@ export default function Home() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#00A896',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#022C22', // fills the status bar / notch area behind the header
   },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  pressed: {
+    opacity: 0.8,
+  },
 
   // Header
   header: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 12,
     paddingBottom: 40,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'visible',
+    zIndex: 2, // keep the overlapping card above the panel
+  },
+  circleLarge: {
+    position: 'absolute',
+    top: -60,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  circleSmall: {
+    position: 'absolute',
+    top: 70,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  headerTitleContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  logosRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 12,
-  },
-  logoImage: {
-    width: 36,
-    height: 36,
   },
   headerActions: {
     flexDirection: 'row',
@@ -245,60 +424,211 @@ const styles = StyleSheet.create({
     gap: 10,
     position: 'relative',
   },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 42,
-    right: 0,
-    backgroundColor: '#065F46',
-    borderRadius: 12,
-    padding: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    zIndex: 10,
+  // Popover menu
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2,44,34,0.35)',
   },
-  logoutButton: {
-    paddingHorizontal: 12,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  menuCard: {
+    position: 'absolute',
+    right: 20,
+    width: 230,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    gap: 10,
+  },
+  menuAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+  menuAvatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#047857',
   },
-  toggleButton: {
+  menuHeaderText: {
+    flex: 1,
+  },
+  menuLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  menuName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 1,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 4,
+    marginHorizontal: 6,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 14,
+    gap: 10,
+  },
+  menuItemPressed: {
+    backgroundColor: '#FEF2F2',
+  },
+  menuItemIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#FEE2E2',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toggleButtonText: {
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  toggleButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  greetingWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingRight: 12,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '800',
     color: '#FFFFFF',
+  },
+  greetingTextWrap: {
+    flex: 1,
+  },
+  greetingLine: {
     fontSize: 16,
-    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  greetingName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 
-  // Card component (overlaps the header/panel boundary)
+  // Duty card (overlaps the header/panel boundary)
   cardsRow: {
-    marginTop: 20,
-    marginBottom: -36,
+    marginTop: 16,
+    marginBottom: -84, // = card height, so the card overhangs by (84 - header paddingBottom)
   },
-  placeholderCard: {
-    height: 72,
+  dutyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 20,
+    height: 84,
+    paddingHorizontal: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  dutyInfo: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  dutyStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dutyStatus: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  dutyStatusOn: {
+    color: '#047857',
+  },
+  dutySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  switchTrack: {
+    width: 66,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
     elevation: 3,
   },
 
@@ -306,8 +636,9 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingTop: 44,
+    paddingTop: 64, // card overhang (44) + 20 breathing room
     paddingHorizontal: 20,
+    zIndex: 1,
   },
   panelHeaderRow: {
     flexDirection: 'row',
