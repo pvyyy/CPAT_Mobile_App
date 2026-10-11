@@ -145,10 +145,10 @@ export default function LoginScreen() {
                 resizeMode="contain"
               />
 
-              {/* CPAT LOGO */}
+              {/* BATANGAS LOGO */}
               <Image
-                source={require('@/assets/images/logo/CPATLOGO1.png')}
-                style={styles.cpatLogo}
+                source={require('@/assets/images/logo/batangas_logo.png')}
+                style={styles.batangasLogo}
                 resizeMode="contain"
               />
 
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
 
-  cpatLogo: {
+  batangasLogo: {
     width: 70,
     height: 50,
 
