@@ -23,23 +23,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleSignIn = async () => {
-  if (!email || !password) {
-    alert('Please enter your email and password.');
-    return;
-  }
+    if (!email || !password) {
+      alert('Please enter your email and password.');
+      return;
+    }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
-  router.replace('/(home)' as any);
-};
+    router.replace('/(home)' as any);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -58,10 +58,12 @@ export default function LoginScreen() {
           ========================= */}
           <View style={styles.header}>
 
-            {/* Login Icon */}
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>➜</Text>
-            </View>
+            {/* New CPAT Header Logo */}
+            <Image
+              source={require('@/assets/images/logo/cpat-logo.png')} 
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
 
             {/* Title */}
             <Text style={styles.title}>
@@ -137,18 +139,18 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
 
               {/* TDRO LOGO */}
-<Image
-  source={require('@/assets/images/logo/tdro_logo.png')}
-  style={styles.tdroLogo}
-  resizeMode="contain"
-/>
+              <Image
+                source={require('@/assets/images/logo/tdro_logo.png')}
+                style={styles.tdroLogo}
+                resizeMode="contain"
+              />
 
-{/* CPAT LOGO */}
-<Image
-  source={require('@/assets/images/logo/CPATLOGO1.png')}
-  style={styles.cpatLogo}
-  resizeMode="contain"
-/>
+              {/* CPAT LOGO */}
+              <Image
+                source={require('@/assets/images/logo/CPATLOGO1.png')}
+                style={styles.cpatLogo}
+                resizeMode="contain"
+              />
 
             </View>
 
@@ -173,7 +175,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
 
   /* =========================
-     SCREEN
+      SCREEN
   ========================= */
 
   container: {
@@ -197,7 +199,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     HEADER
+      HEADER
   ========================= */
 
   header: {
@@ -205,26 +207,11 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
 
-  iconContainer: {
-    width: 64,
-    height: 64,
-
-    borderRadius: 16,
-
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-
-    justifyContent: 'center',
-    alignItems: 'center',
-
+  // New style for the provided logo
+  headerLogo: {
+    width: 150, 
+    height: 64, // Matched height of original iconContainer
     marginBottom: 18,
-  },
-
-  iconText: {
-    fontSize: 28,
-    fontWeight: '600',
-
-    color: '#065F46',
   },
 
   title: {
@@ -249,7 +236,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     FORM
+      FORM
   ========================= */
 
   form: {
@@ -290,7 +277,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     SIGN IN BUTTON
+      SIGN IN BUTTON
   ========================= */
 
   button: {
@@ -332,7 +319,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     FOOTER
+      FOOTER
   ========================= */
 
   footer: {
@@ -353,7 +340,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     LOGOS
+      LOGOS
   ========================= */
 
   logoContainer: {
@@ -385,7 +372,7 @@ const styles = StyleSheet.create({
 
 
   /* =========================
-     FOOTER TEXT
+      FOOTER TEXT
   ========================= */
 
   footerText: {

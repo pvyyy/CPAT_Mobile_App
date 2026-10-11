@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -237,6 +238,15 @@ export default function Home() {
           <View style={styles.circleLarge} />
           <View style={styles.circleSmall} />
 
+          {/* Header Logo inside green header with white background */}
+          <View style={styles.logoHeaderContainer}>
+            <Image
+              source={require('@/assets/images/logo/cpat-logo.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+          </View>
+
           {/* Top row: greeting on the left, menu on the right */}
           <View style={styles.headerTopRow}>
             <View style={styles.greetingWrap}>
@@ -270,7 +280,7 @@ export default function Home() {
               >
                 {/* Tap anywhere outside the menu to dismiss */}
                 <Pressable style={styles.menuBackdrop} onPress={() => setShowLogout(false)}>
-                  <View style={[styles.menuCard, { top: insets.top + 66 }]}>
+                  <View style={[styles.menuCard, { top: insets.top + 100 }]}>
                     <View style={styles.menuHeader}>
                       <View style={styles.menuAvatar}>
                         <Text style={styles.menuAvatarText}>
@@ -394,6 +404,19 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 32,
     overflow: 'visible',
     zIndex: 2, // keep the overlapping card above the panel
+  },
+  logoHeaderContainer: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  headerLogo: {
+    width: 120,
+    height: 38,
   },
   circleLarge: {
     position: 'absolute',
