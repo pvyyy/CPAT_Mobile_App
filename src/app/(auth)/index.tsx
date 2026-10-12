@@ -65,14 +65,10 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
 
-            {/* Title */}
-            <Text style={styles.title}>
-              SIGN IN
-            </Text>
 
             {/* Subtitle */}
             <Text style={styles.subtitle}>
-              Access your team workspace.
+              SIgn In to your Account 
             </Text>
 
           </View>
@@ -121,7 +117,7 @@ export default function LoginScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.buttonText}>
-                Sign In
+                Continue →
               </Text>
             </TouchableOpacity>
 
@@ -138,17 +134,17 @@ export default function LoginScreen() {
             {/* Logos */}
             <View style={styles.logoContainer}>
 
-              {/* TDRO LOGO */}
-              <Image
-                source={require('@/assets/images/logo/tdro_logo.png')}
-                style={styles.tdroLogo}
-                resizeMode="contain"
-              />
-
               {/* BATANGAS LOGO */}
               <Image
                 source={require('@/assets/images/logo/batangas_logo.png')}
                 style={styles.batangasLogo}
+                resizeMode="contain"
+              />
+
+              {/* TDRO LOGO */}
+              <Image
+                source={require('@/assets/images/logo/tdro_logo.png')}
+                style={styles.tdroLogo}
                 resizeMode="contain"
               />
 
@@ -214,22 +210,10 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
-  title: {
-    fontSize: 28,
-
-    fontWeight: '800',
-
-    color: '#047857',
-
-    letterSpacing: 1.2,
-
-    marginBottom: 8,
-  },
-
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
 
-    color: '#64748B',
+    color: '#065F46',
 
     textAlign: 'center',
   },
@@ -335,7 +319,7 @@ const styles = StyleSheet.create({
 
     backgroundColor: '#E2E8F0',
 
-    marginBottom: 18,
+    marginBottom: 5,
   },
 
 
@@ -352,7 +336,7 @@ const styles = StyleSheet.create({
     height: 70,
 
     marginTop: 0,
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   tdroLogo: {
