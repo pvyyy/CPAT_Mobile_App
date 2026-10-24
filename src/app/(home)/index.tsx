@@ -18,6 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../../lib/supabase'; // Ensure this points to your Supabase client setup
+import { startDutyTracking, stopDutyTracking, getDutyState, ensureTracking } from '../../../lib/DutyTracking';
 
 // Sample mock data for Batangas City accident reports
 const ACCIDENT_REPORTS = [
@@ -150,17 +151,32 @@ export default function Home() {
     return () => clearInterval(id);
   }, [onDuty, dutyStart]);
 
-  const startDuty = () => {
-    setDutyStart(Date.now());
-    setOnDuty(true);
-    // TODO: save duty status to Supabase (e.g. update profiles.on_duty = true)
-  };
+  useEffect(() => {
+  (async () => {
+    const state = await getDutyState();
+    if (state.onDuty) {
+      setDutyStart(state.since ?? Date.now());
+      setOnDuty(true);
+      ensureTracking().catch(() => {});
+    }
+  })();
+}, []);
 
-  const endDuty = () => {
-    setOnDuty(false);
-    setDutyStart(null);
-    // TODO: save duty status to Supabase (e.g. update profiles.on_duty = false)
-  };
+  const startDuty = async () => {
+  const result = await startDutyTracking();
+  if (!result.ok) {
+    Alert.alert('Cannot start duty', result.error);
+    return;
+  }
+  setDutyStart(Date.now());
+  setOnDuty(true);
+};
+
+  const endDuty = async () => {
+  await stopDutyTracking();
+  setOnDuty(false);
+  setDutyStart(null);
+};
 
   const handleToggleDuty = () => {
     if (!onDuty) {
@@ -176,9 +192,10 @@ export default function Home() {
   const insets = useSafeAreaInsets();
 
   const confirmLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace('/(auth)/' as any);
-  };
+  await stopDutyTracking();
+  await supabase.auth.signOut();
+  router.replace('/(auth)/' as any);
+};
 
   const handleLogout = () => {
     setShowLogout(false);

@@ -24,6 +24,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      ["expo-location", {
+    "locationAlwaysAndWhenInUsePermission": "CPAT shares your location with dispatch while you are on duty.",
+    "isAndroidBackgroundLocationEnabled": true,
+    "isAndroidForegroundServiceEnabled": true,
+    "isIosBackgroundLocationEnabled": true
+  }],
       "expo-router",
       [
         "expo-splash-screen",
