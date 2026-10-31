@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "312886009084",
+    "project_id": "cpat-eedac",
+    "storage_bucket": "cpat-eedac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:312886009084:android:f51d3aef88f0e5dd034b79",
+        "android_client_info": {
+          "package_name": "com.ixclint.cpatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzqOx7cMTOHBUwqfXC8xBMRzr9OcfWuFU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

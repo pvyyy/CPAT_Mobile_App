@@ -21,6 +21,7 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { supabase } from "../../../lib/supabase"; // Ensure this points to your Supabase client setup
+import { registerPushToken } from '../../../lib/RegisterPushToken';
 import {
   startDutyTracking,
   stopDutyTracking,
@@ -141,6 +142,10 @@ export default function Home() {
     fetchUserProfile();
   }, []);
 
+  useEffect(() => {
+  registerPushToken();
+}, []);
+
   // Animate the switch
   useEffect(() => {
     Animated.timing(switchAnim, {
@@ -207,18 +212,39 @@ export default function Home() {
   const insets = useSafeAreaInsets();
 
   const confirmLogout = async () => {
+  try {
     await stopDutyTracking();
-    await supabase.auth.signOut();
-    router.replace("/(auth)/" as any);
-  };
 
-  const handleLogout = () => {
-    setShowLogout(false);
-    Alert.alert("Log out?", "You will need to sign in again to continue.", [
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      Alert.alert("Logout Failed", error.message);
+      return;
+    }
+
+    router.replace("/(auth)/" as any);
+  } catch (error) {
+    console.error("[CPAT] Logout error:", error);
+    Alert.alert("Logout Failed", "Unable to log out. Please try again.");
+  }
+};
+
+const handleLogout = () => {
+  setShowLogout(false);
+
+  Alert.alert(
+    "Log out?",
+    "You will need to sign in again to continue.",
+    [
       { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: confirmLogout },
-    ]);
-  };
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: confirmLogout,
+      },
+    ]
+  );
+};
 
   const trackColor = switchAnim.interpolate({
     inputRange: [0, 1],
@@ -447,7 +473,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#000000",
   },
   pressed: {
     opacity: 0.8,
