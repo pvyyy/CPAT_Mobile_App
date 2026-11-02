@@ -119,21 +119,40 @@ export async function stopDutyTracking(): Promise<void> {
 }
 
 /** Reads the saved duty state, so the switch is correct after the app restarts. */
-export async function getDutyState(): Promise<{ onDuty: boolean; since: number | null }> {
+export async function getDutyState(): Promise<{
+  onDuty: boolean;
+  since: number | null;
+}> {
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { onDuty: false, since: null };
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-  const { data } = await supabase
-    .from('enforcer_status')
-    .select('duty_status, duty_started_at')
-    .eq('enforcer_id', user.id)
+  if (sessionError || !session) {
+    console.warn(
+      "[DUTY] Session unavailable:",
+      sessionError?.message
+    );
+
+    return { onDuty: false, since: null };
+  }
+
+  const { data, error } = await supabase
+    .from("enforcer_status")
+    .select("duty_status, duty_started_at")
+    .eq("enforcer_id", session.user.id)
     .maybeSingle();
+
+  if (error) {
+    console.error("[DUTY] Failed to retrieve status:", error.message);
+    return { onDuty: false, since: null };
+  }
 
   return {
     onDuty: !!data?.duty_status,
-    since: data?.duty_started_at ? Date.parse(data.duty_started_at) : null,
+    since: data?.duty_started_at
+      ? Date.parse(data.duty_started_at)
+      : null,
   };
 }
 

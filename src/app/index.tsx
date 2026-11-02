@@ -1,8 +1,7 @@
-
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
 import { supabase } from "../../lib/supabase";
+import LoadingScreen from "./components/Loading";
 
 export default function Index() {
   const [destination, setDestination] = useState<
@@ -13,14 +12,20 @@ export default function Index() {
     let mounted = true;
 
     const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (error || !data.session) {
-        setDestination("/(auth)");
-      } else {
-        setDestination("/(home)");
+        if (error || !data.session) {
+          setDestination("/(auth)");
+        } else {
+          setDestination("/(home)");
+        }
+      } catch {
+        if (mounted) {
+          setDestination("/(auth)");
+        }
       }
     };
 
@@ -32,18 +37,7 @@ export default function Index() {
   }, []);
 
   if (!destination) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-        }}
-      >
-        <ActivityIndicator size="large" color="#065F46" />
-      </View>
-    );
+    return <LoadingScreen />;
   }
 
   return <Redirect href={destination} />;

@@ -1,26 +1,32 @@
 
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-import { supabase } from './supabase';
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
+import { supabase } from "./supabase";
 
 export async function registerPushToken(): Promise<void> {
   try {
-    // Remote push notifications require a supported device.
+    // Remote push notifications require a physical device.
     if (!Device.isDevice) {
-      console.warn('Push notifications require a physical device.');
+      console.warn("Push notifications require a physical device.");
       return;
     }
 
-    // Configure the Android notification channel.
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#10B981',
-      });
+    // Configure the emergency incident notification channel.
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync(
+        "incident-alerts-v2",
+        {
+          name: "Emergency Incident Alerts",
+          description: "Urgent accident notifications for enforcers.",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 2000, 500, 2000, 500, 2000],
+          enableVibrate: true,
+          enableLights: true,
+          lightColor: "#FF0000",
+        }
+      );
     }
 
     // Ensure the user is signed in.
@@ -30,7 +36,7 @@ export async function registerPushToken(): Promise<void> {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.warn('Cannot register push token: user is not signed in.');
+      console.warn("Cannot register push token: user is not signed in.");
       return;
     }
 
@@ -40,13 +46,13 @@ export async function registerPushToken(): Promise<void> {
 
     let finalStatus = existingStatus;
 
-    if (existingStatus !== 'granted') {
+    if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
-    if (finalStatus !== 'granted') {
-      console.warn('Notification permission was not granted.');
+    if (finalStatus !== "granted") {
+      console.warn("Notification permission was not granted.");
       return;
     }
 
@@ -56,7 +62,7 @@ export async function registerPushToken(): Promise<void> {
       Constants.expoConfig?.extra?.eas?.projectId;
 
     if (!projectId) {
-      console.warn('EAS project ID is missing from app configuration.');
+      console.warn("EAS project ID is missing from app configuration.");
       return;
     }
 
@@ -67,20 +73,19 @@ export async function registerPushToken(): Promise<void> {
 
     // Save the token to the existing enforcer_status row.
     const { error: saveError } = await supabase
-      .from('enforcer_status')
+      .from("enforcer_status")
       .update({
         expo_push_token: token,
-        updated_at: new Date().toISOString(),
       })
-      .eq('enforcer_id', user.id);
+      .eq("enforcer_id", user.id);
 
     if (saveError) {
-      console.error('Failed to save Expo push token:', saveError.message);
+      console.error("Failed to save Expo push token:", saveError.message);
       return;
     }
 
-    console.log('Expo push token saved successfully.');
+    console.log("Expo push token saved successfully.");
   } catch (error) {
-    console.error('Push token registration failed:', error);
+    console.error("Push token registration failed:", error);
   }
 }

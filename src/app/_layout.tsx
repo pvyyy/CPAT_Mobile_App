@@ -34,7 +34,7 @@ function AccidentNotificationListener() {
       pendingIncidentId.current = null;
 
       router.push({
-        pathname: "/(incident-alert)/page",
+        pathname: "/(incident-alert)",
         params: {
           incident_id: incidentId,
         },

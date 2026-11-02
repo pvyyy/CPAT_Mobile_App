@@ -238,9 +238,6 @@ async function loadIncident() {
           <Text style={styles.topSubtitle}>CPAT Enforcer Alert</Text>
         </View>
 
-        <View style={styles.alertIcon}>
-          <Ionicons name="warning" size={22} color="#DC2626" />
-        </View>
       </View>
 
       <Text style={styles.sectionTitle}>Accident Snapshot</Text>
@@ -346,10 +343,7 @@ async function loadIncident() {
       {error ? <Text style={styles.inlineError}>{error}</Text> : null}
 
 
-      <Pressable style={styles.primaryButton} onPress={() => router.back()}>
-        <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-        <Text style={styles.primaryButtonText}>Acknowledge Incident</Text>
-      </Pressable>
+
 <ImageViewing
   images={snapshotUrl ? [{ uri: snapshotUrl }] : []}
   imageIndex={0}
@@ -428,14 +422,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 12,
     color: "#64748B",
-  },
-  alertIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: "#FEE2E2",
-    alignItems: "center",
-    justifyContent: "center",
   },
   statusBanner: {
     flexDirection: "row",
