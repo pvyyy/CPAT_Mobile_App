@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 import {
   StyleSheet,
@@ -10,77 +10,105 @@ import {
   Platform,
   Image,
   ScrollView,
-} from 'react-native';
+  Alert,
+} from "react-native";
 
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../../lib/supabase';
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { supabase } from "../../../lib/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      alert('Please enter your email and password.');
+    if (!email.trim() || !password) {
+      Alert.alert(
+        "Missing Information",
+        "Please enter your email and password.",
+      );
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      alert(error.message);
-      return;
+      if (error) {
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
+          Alert.alert(
+            "Login Failed",
+            "Invalid email or password. Please try again.",
+          );
+        } else {
+          Alert.alert("Login Failed", error.message);
+        }
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("user_role")
+        .eq("id", data.user.id)
+        .single();
+
+      if (profileError || !profile || profile.user_role !== "enforcer") {
+        await supabase.auth.signOut();
+
+        Alert.alert(
+          "Access Denied",
+          "This application is exclusively for authorized traffic enforcers.",
+        );
+        return;
+      }
+
+      router.replace("/(home)" as any);
+    } catch (error) {
+      console.error("[CPAT] Login error:", error);
+
+      Alert.alert(
+        "Something Went Wrong",
+        "Unable to log in at the moment. Please check your connection and try again.",
+      );
     }
-
-    router.replace('/(home)' as any);
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-
           {/* =========================
               HEADER
           ========================= */}
           <View style={styles.header}>
-
             {/* New CPAT Header Logo */}
             <Image
-              source={require('@/assets/images/logo/cpat-logo.png')} 
+              source={require("@/assets/images/logo/cpat-logo.png")}
               style={styles.headerLogo}
               resizeMode="contain"
             />
 
-
             {/* Subtitle */}
-            <Text style={styles.subtitle}>
-              SIgn In to your Account 
-            </Text>
-
+            <Text style={styles.subtitle}>SIgn In to your Account</Text>
           </View>
 
           {/* =========================
               FORM
           ========================= */}
           <View style={styles.form}>
-
             {/* EMAIL INPUT */}
             <View style={styles.inputContainer}>
-
               <TextInput
                 style={styles.input}
                 placeholder="EMAIL"
@@ -91,12 +119,10 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-
             </View>
 
             {/* PASSWORD INPUT */}
             <View style={styles.inputContainer}>
-
               <TextInput
                 style={styles.input}
                 placeholder="PASSWORD"
@@ -107,7 +133,6 @@ export default function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-
             </View>
 
             {/* SIGN IN BUTTON */}
@@ -116,67 +141,55 @@ export default function LoginScreen() {
               onPress={handleSignIn}
               activeOpacity={0.8}
             >
-              <Text style={styles.buttonText}>
-                Continue →
-              </Text>
+              <Text style={styles.buttonText}>Continue →</Text>
             </TouchableOpacity>
-
           </View>
 
           {/* =========================
               FOOTER
           ========================= */}
           <View style={styles.footer}>
-
             {/* Divider */}
             <View style={styles.divider} />
 
             {/* Logos */}
             <View style={styles.logoContainer}>
-
               {/* BATANGAS LOGO */}
               <Image
-                source={require('@/assets/images/logo/batangas_logo.png')}
+                source={require("@/assets/images/logo/batangas_logo.png")}
                 style={styles.batangasLogo}
                 resizeMode="contain"
               />
 
               {/* TDRO LOGO */}
               <Image
-                source={require('@/assets/images/logo/tdro_logo.png')}
+                source={require("@/assets/images/logo/tdro_logo.png")}
                 style={styles.tdroLogo}
                 resizeMode="contain"
               />
-
             </View>
 
             {/* Authorized Personnel */}
-            <Text style={styles.footerText}>
-              AUTHORIZED PERSONNEL ONLY
-            </Text>
-
+            <Text style={styles.footerText}>AUTHORIZED PERSONNEL ONLY</Text>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-
 /* =========================================================
    STYLES
 ========================================================= */
 
 const styles = StyleSheet.create({
-
   /* =========================
       SCREEN
   ========================= */
 
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
 
   keyboardView: {
@@ -186,26 +199,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
 
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
 
     paddingHorizontal: 24,
     paddingVertical: 30,
   },
-
 
   /* =========================
       HEADER
   ========================= */
 
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 28,
   },
 
   // New style for the provided logo
   headerLogo: {
-    width: 150, 
+    width: 150,
     height: 64, // Matched height of original iconContainer
     marginBottom: 18,
   },
@@ -213,30 +225,29 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
 
-    color: '#065F46',
+    color: "#065F46",
 
-    textAlign: 'center',
+    textAlign: "center",
   },
-
 
   /* =========================
       FORM
   ========================= */
 
   form: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
   },
 
   inputContainer: {
-    width: '100%',
+    width: "100%",
     height: 52,
 
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
 
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: "#CBD5E1",
 
     borderRadius: 10,
 
@@ -244,41 +255,40 @@ const styles = StyleSheet.create({
 
     marginBottom: 16,
 
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
 
   input: {
     flex: 1,
 
-    height: '100%',
+    height: "100%",
 
     fontSize: 13,
 
-    color: '#1E293B',
+    color: "#1E293B",
 
     letterSpacing: 0.8,
   },
-
 
   /* =========================
       SIGN IN BUTTON
   ========================= */
 
   button: {
-    width: '100%',
+    width: "100%",
     height: 52,
 
-    backgroundColor: '#065F46',
+    backgroundColor: "#065F46",
 
     borderRadius: 10,
 
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
 
     marginTop: 4,
     marginBottom: 28,
 
-    shadowColor: '#065F46',
+    shadowColor: "#065F46",
 
     shadowOffset: {
       width: 0,
@@ -292,46 +302,44 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
 
     fontSize: 15,
 
-    fontWeight: '700',
+    fontWeight: "700",
 
     letterSpacing: 0.3,
   },
-
 
   /* =========================
       FOOTER
   ========================= */
 
   footer: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
 
-    alignItems: 'center',
+    alignItems: "center",
   },
 
   divider: {
-    width: '100%',
+    width: "100%",
     height: 1,
 
-    backgroundColor: '#E2E8F0',
+    backgroundColor: "#E2E8F0",
 
     marginBottom: 5,
   },
-
 
   /* =========================
       LOGOS
   ========================= */
 
   logoContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
 
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
 
     height: 70,
 
@@ -354,7 +362,6 @@ const styles = StyleSheet.create({
     marginLeft: 0,
   },
 
-
   /* =========================
       FOOTER TEXT
   ========================= */
@@ -362,13 +369,12 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
 
-    color: '#94A3B8',
+    color: "#94A3B8",
 
     letterSpacing: 2,
 
-    fontWeight: '600',
+    fontWeight: "600",
 
-    textAlign: 'center',
+    textAlign: "center",
   },
-
 });
