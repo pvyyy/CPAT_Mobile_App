@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "CpatApp",
+    "name": "CPAT",
     "slug": "CpatApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo/brandmark.png",
     "scheme": "cpatapp",
     "userInterfaceStyle": "automatic",
     "ios": {
