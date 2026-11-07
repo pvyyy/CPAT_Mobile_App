@@ -1,8 +1,8 @@
-
 import { Stack, useRouter, useRootNavigationState } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef } from "react";
 import "../../lib/DutyTracking";
+import { View, Text } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -47,23 +47,21 @@ function AccidentNotificationListener() {
     (response: Notifications.NotificationResponse | null) => {
       if (!response) return;
 
-      const responseKey =
-        `${response.notification.request.identifier}:${response.actionIdentifier}`;
+      const responseKey = `${response.notification.request.identifier}:${response.actionIdentifier}`;
 
       if (handledResponses.current.has(responseKey)) {
         console.log("[CPAT] Duplicate notification ignored.");
         return;
       }
 
-      const data = response.notification.request.content
-        .data as Record<string, unknown>;
+      const data = response.notification.request.content.data as Record<
+        string,
+        unknown
+      >;
 
       console.log("[CPAT] Notification tapped:", data);
 
-      if (
-        data?.type !== "incident_alert" ||
-        data?.incident_id == null
-      ) {
+      if (data?.type !== "incident_alert" || data?.incident_id == null) {
         console.log("[CPAT] Not an incident notification.");
         return;
       }
@@ -90,20 +88,18 @@ function AccidentNotificationListener() {
 
   // Listen for notification taps while the app is running.
   useEffect(() => {
-    const subscription =
-      Notifications.addNotificationResponseReceivedListener(
-        handleNotificationResponse,
-      );
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse,
+    );
 
     // Handle notification taps that launched the app.
-    const checkLastResponse = async () => {
-      const response =
-        await Notifications.getLastNotificationResponseAsync();
+    const checkLastResponse = () => {
+      const response = Notifications.getLastNotificationResponse();
 
       if (response) {
         handleNotificationResponse(response);
 
-        await Notifications.clearLastNotificationResponseAsync();
+        Notifications.clearLastNotificationResponse();
       }
     };
 

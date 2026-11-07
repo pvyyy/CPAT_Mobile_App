@@ -33,20 +33,37 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (updateError) console.warn('Could not save location:', updateError.message);
 });
 
+
 async function startLocationTask() {
+  const isTracking =
+    await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
+
+  if (isTracking) {
+    console.log("[DUTY] Location service is already running.");
+    return;
+  }
+
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.Balanced,
-    timeInterval: 30000, // about every 30 s (Android)
+
+    timeInterval: 30000,
+    distanceInterval: 0,
+
     pausesUpdatesAutomatically: false,
-    showsBackgroundLocationIndicator: true, // iOS blue bar
+    showsBackgroundLocationIndicator: true,
+
     foregroundService: {
-      // Android: required so the system keeps tracking while the app is closed
-      notificationTitle: 'On duty',
-      notificationBody: 'Sharing your location with CPAT dispatch',
-      notificationColor: '#065F46',
+      notificationTitle: "CPAT – Enforcer Duty",
+      notificationBody:
+        "You are On Duty. CPAT is sharing your location with dispatch.",
+      notificationColor: "#065F46",
+      killServiceOnDestroy: false,
     },
   });
+
+  console.log("[DUTY] Foreground location service started.");
 }
+
 
 type StartResult = { ok: true } | { ok: false; error: string };
 

@@ -259,66 +259,61 @@ export default function Home() {
   //   })();
   // }, []);
   const refreshHome = useCallback(async () => {
-  console.log("[CPAT] Refreshing home screen...");
+    console.log("[CPAT] Refreshing home screen...");
 
-  // Restore duty status from Supabase.
-  const state = await getDutyState();
+    // Restore duty status from Supabase.
+    const state = await getDutyState();
 
-  console.log("[CPAT] Restored duty state:", state);
+    console.log("[CPAT] Restored duty state:", state);
 
-  setOnDuty(state.onDuty);
-  setDutyStart(
-    state.onDuty ? state.since ?? Date.now() : null
-  );
+    setOnDuty(state.onDuty);
+    setDutyStart(state.onDuty ? (state.since ?? Date.now()) : null);
 
-  // Resume tracking if the enforcer is still on duty.
-  if (state.onDuty) {
-    try {
-      await ensureTracking();
-      console.log("[CPAT] Location tracking checked.");
-    } catch (error) {
-      console.warn("[CPAT] Could not resume tracking:", error);
-    }
-  }
-
-  // Reload today's incidents.
-  await fetchTodayIncidents();
-
-  console.log("[CPAT] Home screen refresh completed.");
-}, [fetchTodayIncidents]);
-
-useFocusEffect(
-  useCallback(() => {
-    let active = true;
-
-    const refresh = () => {
-      if (active) {
-        refreshHome().catch((error) => {
-          console.error("[CPAT] Home refresh failed:", error);
-        });
+    // Resume tracking if the enforcer is still on duty.
+    if (state.onDuty) {
+      try {
+        await ensureTracking();
+        console.log("[CPAT] Location tracking checked.");
+      } catch (error) {
+        console.warn("[CPAT] Could not resume tracking:", error);
       }
-    };
+    }
 
-    // Run when Home receives focus.
-    refresh();
+    // Reload today's incidents.
+    await fetchTodayIncidents();
 
-    // Run again whenever the app returns to the foreground.
-    const subscription = AppState.addEventListener(
-      "change",
-      (nextState) => {
+    console.log("[CPAT] Home screen refresh completed.");
+  }, [fetchTodayIncidents]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const refresh = () => {
+        if (active) {
+          refreshHome().catch((error) => {
+            console.error("[CPAT] Home refresh failed:", error);
+          });
+        }
+      };
+
+      // Run when Home receives focus.
+      refresh();
+
+      // Run again whenever the app returns to the foreground.
+      const subscription = AppState.addEventListener("change", (nextState) => {
         if (nextState === "active") {
           console.log("[CPAT] App returned to foreground.");
           refresh();
         }
-      }
-    );
+      });
 
-    return () => {
-      active = false;
-      subscription.remove();
-    };
-  }, [refreshHome])
-);
+      return () => {
+        active = false;
+        subscription.remove();
+      };
+    }, [refreshHome]),
+  );
 
   // Start duty
   const startDuty = async () => {
@@ -342,17 +337,35 @@ useFocusEffect(
   };
 
   // Toggle duty status
+  // Toggle duty status with confirmation.
   const handleToggleDuty = () => {
     if (!onDuty) {
-      startDuty();
+      Alert.alert(
+        "Start your duty?",
+        "Are you sure you want to go on duty? Your location will be shared with CPAT while you are on duty.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Go on Duty",
+            onPress: startDuty,
+          },
+        ],
+      );
+
       return;
     }
 
     Alert.alert(
       "End your duty?",
-      `You've been on duty for ${formatElapsed(elapsed)}.`,
+      `You've been on duty for ${formatElapsed(elapsed)}. Are you sure you want to stop your duty?`,
       [
-        { text: "Cancel", style: "cancel" },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
         {
           text: "End Duty",
           style: "destructive",

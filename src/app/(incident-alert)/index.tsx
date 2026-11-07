@@ -50,118 +50,116 @@ export default function IncidentAlertScreen() {
     useCallback(() => {
       let active = true;
 
-      
-async function loadIncident() {
-  setLoading(true);
-  setError("");
-  setIncident(null);
-  setCamera(null);
-  setSnapshotUrl(null);
+      async function loadIncident() {
+        setLoading(true);
+        setError("");
+        setIncident(null);
+        setCamera(null);
+        setSnapshotUrl(null);
 
-  try {
-    if (!incident_id) {
-      throw new Error("No incident ID was provided.");
-    }
+        try {
+          if (!incident_id) {
+            throw new Error("No incident ID was provided.");
+          }
 
-    // 1. Fetch incident
-    const { data: incidentData, error: incidentError } =
-      await supabase
-        .from("incident")
-        .select(
-          "incident_id, camera_id, snapshot_path, detected_at, confidence_percentage, verification_status"
-        )
-        .eq("incident_id", incident_id)
-        .maybeSingle();
+          // 1. Fetch incident
+          const { data: incidentData, error: incidentError } = await supabase
+            .from("incident")
+            .select(
+              "incident_id, camera_id, snapshot_path, detected_at, confidence_percentage, verification_status",
+            )
+            .eq("incident_id", incident_id)
+            .maybeSingle();
 
-    if (incidentError) {
-      console.error("Incident query failed:", incidentError);
-      throw new Error(`Incident query failed: ${incidentError.message}`);
-    }
+          if (incidentError) {
+            console.error("Incident query failed:", incidentError);
+            throw new Error(`Incident query failed: ${incidentError.message}`);
+          }
 
-    if (!incidentData) {
-      throw new Error(`Incident ${incident_id} was not found or is not accessible.`);
-    }
+          if (!incidentData) {
+            throw new Error(
+              `Incident ${incident_id} was not found or is not accessible.`,
+            );
+          }
 
-    if (!active) return;
+          if (!active) return;
 
-    setIncident(incidentData as Incident);
+          setIncident(incidentData as Incident);
 
-    // 2. Fetch camera independently
-    const { data: cameraData, error: cameraError } =
-      await supabase
-        .from("camera")
-        .select(
-          "id, landmark, location_street, barangay, latitude, longitude"
-        )
-        .eq("id", incidentData.camera_id)
-        .maybeSingle();
+          // 2. Fetch camera independently
+          const { data: cameraData, error: cameraError } = await supabase
+            .from("camera")
+            .select(
+              "id, landmark, location_street, barangay, latitude, longitude",
+            )
+            .eq("id", incidentData.camera_id)
+            .maybeSingle();
 
-    if (cameraError) {
-      console.error("Camera query failed:", cameraError);
-      if (active) {
-        setError(`Camera query failed: ${cameraError.message}`);
-      }
-    } else if (!cameraData) {
-      console.warn(
-        "No camera matched incident camera_id:",
-        incidentData.camera_id
-      );
-      if (active) {
-        setError("No matching camera record was found.");
-      }
-    } else if (active) {
-      console.log("Camera loaded:", cameraData);
-      setCamera(cameraData as Camera);
-    }
+          if (cameraError) {
+            console.error("Camera query failed:", cameraError);
+            if (active) {
+              setError(`Camera query failed: ${cameraError.message}`);
+            }
+          } else if (!cameraData) {
+            console.warn(
+              "No camera matched incident camera_id:",
+              incidentData.camera_id,
+            );
+            if (active) {
+              setError("No matching camera record was found.");
+            }
+          } else if (active) {
+            console.log("Camera loaded:", cameraData);
+            setCamera(cameraData as Camera);
+          }
 
-    // 3. Fetch snapshot independently
-    if (!incidentData.snapshot_path) {
-      console.warn("The incident has no snapshot_path.");
-      if (active) {
-        setError((previous) =>
-          [previous, "No snapshot path is stored for this incident."]
-            .filter(Boolean)
-            .join(" ")
-        );
-      }
-    } else {
-      console.log("Snapshot path:", incidentData.snapshot_path);
+          // 3. Fetch snapshot independently
+          if (!incidentData.snapshot_path) {
+            console.warn("The incident has no snapshot_path.");
+            if (active) {
+              setError((previous) =>
+                [previous, "No snapshot path is stored for this incident."]
+                  .filter(Boolean)
+                  .join(" "),
+              );
+            }
+          } else {
+            console.log("Snapshot path:", incidentData.snapshot_path);
 
-      const { data: signedData, error: signedError } =
-        await supabase.storage
-          .from("incident-snapshots")
-          .createSignedUrl(incidentData.snapshot_path, 3600);
+            const { data: signedData, error: signedError } =
+              await supabase.storage
+                .from("incident-snapshots")
+                .createSignedUrl(incidentData.snapshot_path, 3600);
 
-      if (signedError) {
-        console.error("Snapshot signing failed:", signedError);
+            if (signedError) {
+              console.error("Snapshot signing failed:", signedError);
 
-        if (active) {
-          setError((previous) =>
-            [previous, `Snapshot error: ${signedError.message}`]
-              .filter(Boolean)
-              .join(" ")
-          );
+              if (active) {
+                setError((previous) =>
+                  [previous, `Snapshot error: ${signedError.message}`]
+                    .filter(Boolean)
+                    .join(" "),
+                );
+              }
+            } else if (signedData?.signedUrl && active) {
+              console.log("Snapshot signed URL created successfully.");
+              setSnapshotUrl(signedData.signedUrl);
+            } else {
+              console.error("No signed URL was returned:", signedData);
+            }
+          }
+        } catch (e) {
+          console.error("Incident page loading failed:", e);
+
+          if (active) {
+            setError(
+              e instanceof Error ? e.message : "Unable to load incident.",
+            );
+          }
+        } finally {
+          if (active) setLoading(false);
         }
-      } else if (signedData?.signedUrl && active) {
-        console.log("Snapshot signed URL created successfully.");
-        setSnapshotUrl(signedData.signedUrl);
-      } else {
-        console.error("No signed URL was returned:", signedData);
       }
-    }
-  } catch (e) {
-    console.error("Incident page loading failed:", e);
-
-    if (active) {
-      setError(
-        e instanceof Error ? e.message : "Unable to load incident."
-      );
-    }
-  } finally {
-    if (active) setLoading(false);
-  }
-}
-
 
       loadIncident();
 
@@ -237,34 +235,34 @@ async function loadIncident() {
           <Text style={styles.topTitle}>Incident Details</Text>
           <Text style={styles.topSubtitle}>CPAT Enforcer Alert</Text>
         </View>
-
       </View>
 
       <Text style={styles.sectionTitle}>Accident Snapshot</Text>
 
       <View style={styles.snapshotCard}>
         {snapshotUrl ? (
-  <Pressable onPress={() => setImageViewerVisible(true)}>
-    <Image
-      source={{ uri: snapshotUrl }}
-      style={styles.snapshot}
-      resizeMode="contain"
-      onError={(event) => {
-        console.error(
-          "Snapshot image failed to load:",
-          event.nativeEvent.error
-        );
-        setSnapshotUrl(null);
-        setError("The snapshot image could not be loaded.");
-      }}
-    />
+          <Pressable onPress={() => setImageViewerVisible(true)}>
+            <Image
+  source={{ uri: snapshotUrl }}
+  style={styles.snapshot}
+  resizeMode="contain"
+  onLoad={() => {
+    console.log("[SNAPSHOT] Image loaded successfully.");
+  }}
+  onError={(event) => {
+    console.error(
+      "[SNAPSHOT] Image rendering failed:",
+      event.nativeEvent.error
+    );
+  }}
+/>
 
-    <View style={styles.zoomHint}>
-      <Ionicons name="expand-outline" size={15} color="#FFFFFF" />
-      <Text style={styles.zoomHintText}>Tap to enlarge</Text>
-    </View>
-  </Pressable>
-) : (
+            <View style={styles.zoomHint}>
+              <Ionicons name="expand-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.zoomHintText}>Tap to enlarge</Text>
+            </View>
+          </Pressable>
+        ) : (
           <View style={styles.noSnapshot}>
             <Ionicons name="image-outline" size={42} color="#94A3B8" />
             <Text style={styles.noSnapshotText}>No snapshot available</Text>
@@ -287,12 +285,9 @@ async function loadIncident() {
             {camera?.landmark || "Camera location"}
           </Text>
           <Text style={styles.address}>
-            {[
-  camera?.location_street,
-  camera?.barangay,
-]
-  .filter(Boolean)
-  .join(", ") || "Address not available"}
+            {[camera?.location_street, camera?.barangay]
+              .filter(Boolean)
+              .join(", ") || "Address not available"}
           </Text>
 
           {hasCoordinates ? (
@@ -327,7 +322,12 @@ async function loadIncident() {
         <View style={styles.detailDivider} />
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Camera ID</Text>
-          <Text style={styles.detailValue}>{incident?.camera_id}</Text>
+          <Text style={styles.detailValue}>
+            CAM-
+            {String(incident?.camera_id ?? "")
+              .slice(0, 4)
+              .toUpperCase()}
+          </Text>
         </View>
         <View style={styles.detailDivider} />
         <View style={styles.detailRow}>
@@ -342,21 +342,17 @@ async function loadIncident() {
 
       {error ? <Text style={styles.inlineError}>{error}</Text> : null}
 
-
-
-<ImageViewing
-  images={snapshotUrl ? [{ uri: snapshotUrl }] : []}
-  imageIndex={0}
-  visible={imageViewerVisible}
-  onRequestClose={() => setImageViewerVisible(false)}
-  swipeToCloseEnabled
-  doubleTapToZoomEnabled
-  backgroundColor="#000000"
-  presentationStyle="fullScreen"
-/>
-      
+      <ImageViewing
+        images={snapshotUrl ? [{ uri: snapshotUrl }] : []}
+        imageIndex={0}
+        visible={imageViewerVisible}
+        onRequestClose={() => setImageViewerVisible(false)}
+        swipeToCloseEnabled
+        doubleTapToZoomEnabled
+        backgroundColor="#000000"
+        presentationStyle="fullScreen"
+      />
     </ScrollView>
-    
   );
 }
 
@@ -588,7 +584,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   detailValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: "#0F172A",
     textAlign: "right",
@@ -636,21 +632,21 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   zoomHint: {
-  position: "absolute",
-  bottom: 12,
-  right: 12,
-  flexDirection: "row",
-  alignItems: "center",
-  backgroundColor: "rgba(15, 23, 42, 0.75)",
-  paddingHorizontal: 10,
-  paddingVertical: 7,
-  borderRadius: 20,
-  gap: 5,
-},
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 5,
+  },
 
-zoomHintText: {
-  color: "#FFFFFF",
-  fontSize: 11,
-  fontWeight: "600",
-},
+  zoomHintText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "600",
+  },
 });
