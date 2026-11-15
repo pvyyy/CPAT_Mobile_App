@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -6,10 +7,11 @@ import {
   Animated,
   AppState,
   Easing,
-  FlatList,
   Image,
   Modal,
   Pressable,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -102,6 +104,9 @@ export default function Home() {
   const switchAnim = useRef(new Animated.Value(0)).current;
   const [, setTick] = useState(0);
 
+  // Pull-to-refresh state
+  const [refreshing, setRefreshing] = useState(false);
+
   // Keep greeting and clock updated
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
@@ -143,7 +148,6 @@ export default function Home() {
     registerPushToken();
   }, []);
 
-  // Fetch today's incidents
   // Fetch today's confirmed incidents
   const fetchTodayIncidents = useCallback(async () => {
     setActivitiesLoading(true);
@@ -212,13 +216,6 @@ export default function Home() {
     }
   }, []);
 
-  // Refresh incidents whenever Home becomes active
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     fetchTodayIncidents();
-  //   }, [fetchTodayIncidents]),
-  // );
-
   // Animate duty switch
   useEffect(() => {
     Animated.timing(switchAnim, {
@@ -245,23 +242,10 @@ export default function Home() {
     return () => clearInterval(id);
   }, [onDuty, dutyStart]);
 
-  // Restore duty state
-  // useEffect(() => {
-  //   (async () => {
-  //     const state = await getDutyState();
-
-  //     if (state.onDuty) {
-  //       setDutyStart(state.since ?? Date.now());
-  //       setOnDuty(true);
-
-  //       ensureTracking().catch(() => {});
-  //     }
-  //   })();
-  // }, []);
+  // Refresh duty status and incidents
   const refreshHome = useCallback(async () => {
     console.log("[CPAT] Refreshing home screen...");
 
-    // Restore duty status from Supabase.
     const state = await getDutyState();
 
     console.log("[CPAT] Restored duty state:", state);
@@ -269,7 +253,7 @@ export default function Home() {
     setOnDuty(state.onDuty);
     setDutyStart(state.onDuty ? (state.since ?? Date.now()) : null);
 
-    // Resume tracking if the enforcer is still on duty.
+    // Resume tracking if the enforcer is still on duty
     if (state.onDuty) {
       try {
         await ensureTracking();
@@ -279,12 +263,28 @@ export default function Home() {
       }
     }
 
-    // Reload today's incidents.
+    // Reload today's incidents
     await fetchTodayIncidents();
 
     console.log("[CPAT] Home screen refresh completed.");
   }, [fetchTodayIncidents]);
 
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+
+    try {
+      await refreshHome();
+    } catch (error) {
+      console.error("[CPAT] Pull-to-refresh failed:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshHome, refreshing]);
+
+  // Refresh when Home receives focus or app returns to foreground
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -297,10 +297,8 @@ export default function Home() {
         }
       };
 
-      // Run when Home receives focus.
       refresh();
 
-      // Run again whenever the app returns to the foreground.
       const subscription = AppState.addEventListener("change", (nextState) => {
         if (nextState === "active") {
           console.log("[CPAT] App returned to foreground.");
@@ -337,7 +335,6 @@ export default function Home() {
   };
 
   // Toggle duty status
-  // Toggle duty status with confirmation.
   const handleToggleDuty = () => {
     if (!onDuty) {
       Alert.alert(
@@ -430,9 +427,7 @@ export default function Home() {
   };
 
   // Render incident activity
-  const renderIncidentItem = ({ item }: { item: IncidentActivity }) => {
-    const status = "confirmed";
-
+  const renderIncidentItem = (item: IncidentActivity) => {
     const location =
       [item.landmark, item.location_street, item.barangay]
         .filter(Boolean)
@@ -447,10 +442,11 @@ export default function Home() {
 
     return (
       <Pressable
+        key={item.incident_id}
         style={({ pressed }) => [styles.activityRow, pressed && styles.pressed]}
         onPress={() => openIncident(item.incident_id)}
       >
-        <View style={[styles.activityIconWrap, { backgroundColor: "#FEE2E2" }]}>
+        <View style={styles.activityIconWrap}>
           <Ionicons name="warning" size={19} color="#DC2626" />
         </View>
 
@@ -464,10 +460,8 @@ export default function Home() {
           </Text>
         </View>
 
-        <View style={[styles.severityPill, { backgroundColor: "#FEE2E2" }]}>
-          <Text style={[styles.severityPillText, { color: "#DC2626" }]}>
-            Confirmed
-          </Text>
+        <View style={styles.severityPill}>
+          <Text style={styles.severityPillText}>Confirmed</Text>
         </View>
 
         <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
@@ -498,7 +492,7 @@ export default function Home() {
                 pressed && styles.pressed,
               ]}
             >
-              <Ionicons name="ellipsis-horizontal" size={21} color="#065F46" />
+              <Ionicons name="settings-outline" size={21} color="#065F46" />
             </Pressable>
           </View>
 
@@ -564,6 +558,30 @@ export default function Home() {
                 <View style={styles.menuDivider} />
 
                 <Pressable
+                  onPress={() => {
+                    setShowLogout(false);
+                    setTimeout(
+                      () => router.push("/(ChangePassword)/" as any),
+                      250,
+                    );
+                  }}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    pressed && styles.menuItemPressedNeutral,
+                  ]}
+                >
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={19}
+                    color="#065F46"
+                  />
+
+                  <Text style={styles.menuItemTextNeutral}>
+                    Change password
+                  </Text>
+                </Pressable>
+
+                <Pressable
                   onPress={handleLogout}
                   style={({ pressed }) => [
                     styles.menuItem,
@@ -579,8 +597,21 @@ export default function Home() {
           </Modal>
         </View>
 
-        {/* Main content */}
-        <View style={styles.content}>
+        {/* Main content with pull-to-refresh */}
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={["#047857"]}
+              tintColor="#047857"
+              progressBackgroundColor="#FFFFFF"
+            />
+          }
+        >
           {/* Duty status */}
           <View style={styles.dutySection}>
             <View style={styles.sectionHeading}>
@@ -704,16 +735,12 @@ export default function Home() {
                 </Text>
               </View>
             ) : (
-              <FlatList
-                data={incidents}
-                keyExtractor={(item) => String(item.incident_id)}
-                renderItem={renderIncidentItem}
-                contentContainerStyle={styles.listContainer}
-                showsVerticalScrollIndicator={false}
-              />
+              <View style={styles.listContainer}>
+                {incidents.map((item) => renderIncidentItem(item))}
+              </View>
             )}
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -786,10 +813,10 @@ const styles = StyleSheet.create({
     color: "#A7F3D0",
   },
   greetingName: {
-    fontSize: 25,
+    fontSize: 30,
     fontWeight: "800",
     color: "#FFFFFF",
-    marginTop: 4,
+    marginTop: 10,
   },
   headerInfoRow: {
     flexDirection: "row",
@@ -949,6 +976,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
+    backgroundColor: "#FEE2E2",
   },
   activityTextWrap: {
     flex: 1,
@@ -969,10 +997,12 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 6,
     marginLeft: 4,
+    backgroundColor: "#FEE2E2",
   },
   severityPillText: {
     fontSize: 10,
     fontWeight: "700",
+    color: "#DC2626",
   },
   activityState: {
     alignItems: "center",
@@ -1072,5 +1102,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#DC2626",
+  },
+  menuItemPressedNeutral: {
+    backgroundColor: "#ECFDF5",
+  },
+  menuItemTextNeutral: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0F172A",
   },
 });
