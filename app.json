@@ -15,7 +15,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/logo/cpat-logo.png"
+        "foregroundImage": "./assets/images/logo/brandmark.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [

@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -90,6 +89,7 @@ export default function Home() {
   const [lastName, setLastName] = useState<string>("");
 
   const [showLogout, setShowLogout] = useState<boolean>(false);
+  const [dutyLoading, setDutyLoading] = useState(false);
 
   // Recent incidents
   const [incidents, setIncidents] = useState<IncidentActivity[]>([]);
@@ -315,23 +315,54 @@ export default function Home() {
 
   // Start duty
   const startDuty = async () => {
-    const result = await startDutyTracking();
+    if (dutyLoading) return;
 
-    if (!result.ok) {
-      Alert.alert("Cannot start duty", result.error);
-      return;
+    setDutyLoading(true);
+
+    try {
+      const result = await startDutyTracking();
+
+      if (!result.ok) {
+        Alert.alert("Cannot start duty", result.error);
+        return;
+      }
+
+      setDutyStart(Date.now());
+      setOnDuty(true);
+    } catch (error) {
+      console.error("[CPAT] Failed to start duty:", error);
+
+      Alert.alert(
+        "Cannot start duty",
+        "Something went wrong while activating duty. Please try again.",
+      );
+    } finally {
+      setDutyLoading(false);
     }
-
-    setDutyStart(Date.now());
-    setOnDuty(true);
   };
 
   // End duty
+  // End duty
   const endDuty = async () => {
-    await stopDutyTracking();
+    if (dutyLoading) return;
 
-    setOnDuty(false);
-    setDutyStart(null);
+    setDutyLoading(true);
+
+    try {
+      await stopDutyTracking();
+
+      setOnDuty(false);
+      setDutyStart(null);
+    } catch (error) {
+      console.error("[CPAT] Failed to end duty:", error);
+
+      Alert.alert(
+        "Cannot end duty",
+        "Something went wrong while stopping location tracking. Please try again.",
+      );
+    } finally {
+      setDutyLoading(false);
+    }
   };
 
   // Toggle duty status
@@ -648,34 +679,59 @@ export default function Home() {
             <View style={styles.dutyCard}>
               <View style={styles.dutyInfo}>
                 <Text style={styles.dutyStatus}>
-                  {onDuty ? "You're on duty" : "You're off duty"}
+                  {dutyLoading
+                    ? onDuty
+                      ? "Ending your duty..."
+                      : "Starting your duty..."
+                    : onDuty
+                      ? "You're on duty"
+                      : "You're off duty"}
                 </Text>
 
                 <Text style={styles.dutySubtitle}>
-                  {onDuty
-                    ? `Time on duty · ${formatElapsed(elapsed)}`
-                    : "Start your day by going on duty."}
+                  {dutyLoading
+                    ? onDuty
+                      ? "Stopping location tracking. Please wait..."
+                      : "Activating location tracking. Please wait..."
+                    : onDuty
+                      ? `Time on duty · ${formatElapsed(elapsed)}`
+                      : "Start your day by going on duty."}
                 </Text>
               </View>
 
               <Pressable
                 onPress={handleToggleDuty}
                 hitSlop={8}
+                disabled={dutyLoading}
                 accessibilityRole="switch"
-                accessibilityState={{ checked: onDuty }}
+                accessibilityState={{
+                  checked: onDuty,
+                  busy: dutyLoading,
+                  disabled: dutyLoading,
+                }}
                 accessibilityLabel="Duty status"
               >
                 <Animated.View
-                  style={[styles.switchTrack, { backgroundColor: trackColor }]}
+                  style={[
+                    styles.switchTrack,
+                    {
+                      backgroundColor: trackColor,
+                      opacity: dutyLoading ? 0.7 : 1,
+                    },
+                  ]}
                 >
-                  <Animated.View
-                    style={[
-                      styles.switchThumb,
-                      {
-                        transform: [{ translateX: thumbX }],
-                      },
-                    ]}
-                  />
+                  {dutyLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Animated.View
+                      style={[
+                        styles.switchThumb,
+                        {
+                          transform: [{ translateX: thumbX }],
+                        },
+                      ]}
+                    />
+                  )}
                 </Animated.View>
               </Pressable>
             </View>
