@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { requestBatteryExemption } from "../../../lib/BatteryExemption";
+import { useIncidentNotifications } from "../../../lib/useIncidentNotification";
 import {
   ActivityIndicator,
   Alert,
@@ -82,6 +83,7 @@ const getGreeting = () => {
 };
 
 export default function Home() {
+  useIncidentNotifications();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
