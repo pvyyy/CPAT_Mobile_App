@@ -1,8 +1,10 @@
-import { Stack, useRouter, useRootNavigationState } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as Notifications from "expo-notifications";
+import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useRef } from "react";
 import "../../lib/DutyTracking";
-import { View, Text } from "react-native";
+
+SplashScreen.preventAutoHideAsync();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -15,18 +17,19 @@ Notifications.setNotificationHandler({
 
 function AccidentNotificationListener() {
   const router = useRouter();
-  const navigationState = useRootNavigationState();
+  const segments = useSegments();
 
-  const navigationReady = useRef(false);
+  // True only after Index has redirected into the signed-in area
+  const appReady = segments[0] === "(home)";
+
+  const appReadyRef = useRef(false);
   const pendingIncidentId = useRef<string | null>(null);
   const handledResponses = useRef<Set<string>>(new Set());
 
   const navigateToIncident = useCallback(
     (incidentId: string) => {
-      console.log("[CPAT] Opening incident:", incidentId);
-
-      if (!navigationReady.current) {
-        console.log("[CPAT] Navigation not ready. Saving incident.");
+      if (!appReadyRef.current) {
+        console.log("[CPAT] App not ready. Saving incident.");
         pendingIncidentId.current = incidentId;
         return;
       }
@@ -35,13 +38,22 @@ function AccidentNotificationListener() {
 
       router.push({
         pathname: "/(incident-alert)",
-        params: {
-          incident_id: incidentId,
-        },
+        params: { incident_id: incidentId },
       });
     },
     [router],
   );
+
+  // Open the saved incident once Home is mounted
+  useEffect(() => {
+    appReadyRef.current = appReady;
+
+    if (appReady && pendingIncidentId.current) {
+      const id = pendingIncidentId.current;
+      const t = setTimeout(() => navigateToIncident(id), 300);
+      return () => clearTimeout(t);
+    }
+  }, [appReady, navigateToIncident]);
 
   const handleNotificationResponse = useCallback(
     (response: Notifications.NotificationResponse | null) => {
@@ -73,19 +85,6 @@ function AccidentNotificationListener() {
     [navigateToIncident],
   );
 
-  // Check whether Expo Router is ready.
-  useEffect(() => {
-    navigationReady.current = Boolean(navigationState?.key);
-
-    if (navigationReady.current && pendingIncidentId.current) {
-      const incidentId = pendingIncidentId.current;
-
-      console.log("[CPAT] Navigation ready. Opening pending incident.");
-
-      navigateToIncident(incidentId);
-    }
-  }, [navigationState?.key, navigateToIncident]);
-
   // Listen for notification taps while the app is running.
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
@@ -93,17 +92,11 @@ function AccidentNotificationListener() {
     );
 
     // Handle notification taps that launched the app.
-    const checkLastResponse = () => {
-      const response = Notifications.getLastNotificationResponse();
-
-      if (response) {
-        handleNotificationResponse(response);
-
-        Notifications.clearLastNotificationResponse();
-      }
-    };
-
-    checkLastResponse();
+    const response = Notifications.getLastNotificationResponse();
+    if (response) {
+      handleNotificationResponse(response);
+      Notifications.clearLastNotificationResponse();
+    }
 
     return () => {
       subscription.remove();
@@ -114,6 +107,14 @@ function AccidentNotificationListener() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    // Safety net: never leave the splash stuck
+    const t = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />

@@ -8,7 +8,7 @@ export const LOCATION_TASK = 'cpat-duty-location';
 // module that is imported when the app starts (see app/_layout.tsx).
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error) {
-    console.warn('Location task error:', error.message);
+    console.warn('[DUTY] task error:', error.message);
     return;
   }
 
@@ -16,50 +16,56 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   const latest = locations?.[locations.length - 1];
   if (!latest) return;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
+  console.log('[DUTY] task fired', new Date().toISOString());
 
-  const { error: updateError } = await supabase
-    .from('enforcer_status')
-    .update({
-      latitude: latest.coords.latitude,
-      longitude: latest.coords.longitude,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('enforcer_id', session.user.id);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
 
-  if (updateError) console.warn('Could not save location:', updateError.message);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn('[DUTY] no session in background');
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('enforcer_status')
+      .update({
+        latitude: latest.coords.latitude,
+        longitude: latest.coords.longitude,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('enforcer_id', session.user.id)
+      .abortSignal(controller.signal);
+
+    if (updateError) console.warn('[DUTY] save failed:', updateError.message);
+    else console.log('[DUTY] location saved');
+  } catch (e) {
+    console.warn('[DUTY] network error:', e);
+  } finally {
+    clearTimeout(timer);
+  }
 });
 
 
 async function startLocationTask() {
-  const isTracking =
-    await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
-
-  if (isTracking) {
-    console.log("[DUTY] Location service is already running.");
-    return;
+  if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) {
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
   }
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-    accuracy: Location.Accuracy.Balanced,
-
-    timeInterval: 30000,
-    distanceInterval: 0,
-
-    pausesUpdatesAutomatically: false,
-    showsBackgroundLocationIndicator: true,
-
-    foregroundService: {
-      notificationTitle: "CPAT – Enforcer Duty",
-      notificationBody:
-        "You are On Duty. CPAT is sharing your location with dispatch.",
-      notificationColor: "#065F46",
-      killServiceOnDestroy: false,
-    },
-  });
+  accuracy: Location.Accuracy.High,
+  timeInterval: 30000,
+  distanceInterval: 0,
+  pausesUpdatesAutomatically: false,
+  showsBackgroundLocationIndicator: true,
+  foregroundService: {
+    notificationTitle: "CPAT – Enforcer Duty",
+    notificationBody: "You are On Duty. CPAT is sharing your location with dispatch.",
+    notificationColor: "#065F46",
+    killServiceOnDestroy: false,
+  },
+});
 
   console.log("[DUTY] Foreground location service started.");
 }
@@ -86,7 +92,7 @@ export async function startDutyTracking(): Promise<StartResult> {
     };
   }
 
-  const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+ const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
 
   const { error } = await supabase.from('enforcer_status').upsert(
     {
@@ -101,11 +107,9 @@ export async function startDutyTracking(): Promise<StartResult> {
   );
   if (error) return { ok: false, error: error.message };
 
-  if (!(await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK))) {
-    await startLocationTask();
-  }
+  await startLocationTask();
 
-  return { ok: true };
+return { ok: true };
 }
 
 /** Goes off duty: stops tracking and clears the saved location. */

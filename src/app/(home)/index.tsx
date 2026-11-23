@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-
+import { requestBatteryExemption } from "../../../lib/BatteryExemption";
 import {
   ActivityIndicator,
   Alert,
@@ -329,6 +329,8 @@ export default function Home() {
 
       setDutyStart(Date.now());
       setOnDuty(true);
+
+      requestBatteryExemption();
     } catch (error) {
       console.error("[CPAT] Failed to start duty:", error);
 

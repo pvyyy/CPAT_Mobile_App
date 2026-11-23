@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { Redirect } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import LoadingScreen from "./components/Loading";
+import * as SplashScreen from "expo-splash-screen";
 
 type Destination = "/(auth)" | "/(home)";
 
 export default function Index() {
   const [destination, setDestination] = useState<Destination | null>(null);
+
+
+useEffect(() => {
+  if (destination) {
+    SplashScreen.hideAsync().catch(() => {});
+  }
+}, [destination]);
 
   useEffect(() => {
     let mounted = true;
